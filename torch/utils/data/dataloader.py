@@ -1162,13 +1162,14 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                     self._try_put_index()
                     continue
 
+            worker_id = self._task_info[idx][0]
             if idx != self._rcvd_idx:
                 # store out-of-order samples
-                self._try_put_index_in_specific_worker(data.worker_id)
+                self._try_put_index_in_specific_worker(worker_id)
                 self._task_info[idx] += (data,)
             else:
                 del self._task_info[idx]
-                self._try_put_index_in_specific_worker(data.worker_id)
+                self._try_put_index_in_specific_worker(worker_id)
                 return self._process_data(data)
 
     def _try_put_index(self):
