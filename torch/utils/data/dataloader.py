@@ -1204,7 +1204,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             self._task_info[self._send_idx] = (worker_queue_idx,)
             self._tasks_outstanding += 1
             self._send_idx += 1
-        # Current workrk dead/exhausted, do not add anything
+        # Current worker dead/exhausted, do not add anything
         else:
             return
 
