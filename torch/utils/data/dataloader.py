@@ -1179,7 +1179,6 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             # Check if the next sample has already been generated
             if len(self._task_info[self._rcvd_idx]) == 2:
                 worker_id, data = self._task_info.pop(self._rcvd_idx)
-                self._try_put_index_in_specific_worker(worker_id)
                 return self._process_data(data, worker_id)
 
             assert not self._shutdown and self._tasks_outstanding > 0
