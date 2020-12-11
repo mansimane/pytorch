@@ -1145,11 +1145,11 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
 
             # Check if the next sample has already been generated
             if len(self._task_info[self._rcvd_idx]) == 2:
-                data = self._task_info.pop(self._rcvd_idx)[1]
-                return self._process_data(data)
+                worker_id, data = self._task_info.pop(self._rcvd_idx)
+                return self._process_data_from_worker(data, worker_id)
 
             assert not self._shutdown and self._tasks_outstanding > 0
-            idx, data = self._get_data()
+            idx, data = self._get_data() #MANSI
             self._tasks_outstanding -= 1
             if self._dataset_kind == _DatasetKind.Iterable:
                 # Check for _IterableDatasetStopIteration
@@ -1158,6 +1158,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                         self._workers_status[data.worker_id] = False
                     else:
                         self._mark_worker_as_unavailable(data.worker_id)
+                    # Given worker is exhausted, use _try_put_index to put data by looking for other available workers
                     self._try_put_index()
                     continue
 
@@ -1166,7 +1167,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 self._task_info[idx] += (data,)
             else:
                 del self._task_info[idx]
-                return self._process_data(data)
+                return self._process_data_from_worker(data, data.worker_id)
 
     def _try_put_index(self):
         assert self._tasks_outstanding < self._prefetch_factor * self._num_workers
@@ -1187,6 +1188,31 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
         self._task_info[self._send_idx] = (worker_queue_idx,)
         self._tasks_outstanding += 1
         self._send_idx += 1
+
+    def _try_put_index_in_specific_worker(self, worker_queue_idx):
+        assert self._tasks_outstanding < self._prefetch_factor * self._num_workers
+
+        try:
+            index = self._next_index()
+        except StopIteration:
+            return
+
+        if self._workers_status[worker_queue_idx]:
+            self._index_queues[worker_queue_idx].put((self._send_idx, index))
+            self._task_info[self._send_idx] = (worker_queue_idx,)
+            self._tasks_outstanding += 1
+            self._send_idx += 1
+        # Current workrk dead/exhausted try other workers
+        else:
+            return
+
+
+    def _process_data_from_worker(self, data):
+        self._rcvd_idx += 1
+        self._try_put_index_in_specific_worker(data.worker_id)
+        if isinstance(data, ExceptionWrapper):
+            data.reraise()
+        return data
 
     def _process_data(self, data):
         self._rcvd_idx += 1
