@@ -1179,7 +1179,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             # Check if the next sample has already been generated
             if len(self._task_info[self._rcvd_idx]) == 2:
                 worker_id, data = self._task_info.pop(self._rcvd_idx)
-                return self._process_data(data, worker_id)
+                return self._process_data(data)
 
             assert not self._shutdown and self._tasks_outstanding > 0
             idx, data = self._get_data()
@@ -1202,7 +1202,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             else:
                 del self._task_info[idx]
                 self._try_put_index_in_specific_worker(data.worker_id)
-                return self._process_data(data, data.worker_id)
+                return self._process_data(data)
 
     def _try_put_index(self):
         assert self._tasks_outstanding < self._prefetch_factor * self._num_workers
