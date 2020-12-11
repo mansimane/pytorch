@@ -1150,7 +1150,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 return self._process_data(data, worker_id)
 
             assert not self._shutdown and self._tasks_outstanding > 0
-            idx, data = self._get_data() #MANSI
+            idx, data = self._get_data()
             self._tasks_outstanding -= 1
             if self._dataset_kind == _DatasetKind.Iterable:
                 # Check for _IterableDatasetStopIteration
@@ -1205,7 +1205,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             self._task_info[self._send_idx] = (worker_queue_idx,)
             self._tasks_outstanding += 1
             self._send_idx += 1
-        # Current workrk dead/exhausted try other workers
+        # Current workrk dead/exhausted, do not add anything
         else:
             return
 
