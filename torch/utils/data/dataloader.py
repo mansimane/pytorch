@@ -1146,7 +1146,8 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             # Check if the next sample has already been generated
             if len(self._task_info[self._rcvd_idx]) == 2:
                 worker_id, data = self._task_info.pop(self._rcvd_idx)
-                return self._process_data_from_worker(data, worker_id)
+                self._try_put_index_in_specific_worker(worker_id)
+                return self._process_data(data, worker_id)
 
             assert not self._shutdown and self._tasks_outstanding > 0
             idx, data = self._get_data() #MANSI
@@ -1164,10 +1165,12 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
 
             if idx != self._rcvd_idx:
                 # store out-of-order samples
+                self._try_put_index_in_specific_worker(data.worker_id)
                 self._task_info[idx] += (data,)
             else:
                 del self._task_info[idx]
-                return self._process_data_from_worker(data, data.worker_id)
+                self._try_put_index_in_specific_worker(data.worker_id)
+                return self._process_data(data, data.worker_id)
 
     def _try_put_index(self):
         assert self._tasks_outstanding < self._prefetch_factor * self._num_workers
@@ -1207,16 +1210,8 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             return
 
 
-    def _process_data_from_worker(self, data):
-        self._rcvd_idx += 1
-        self._try_put_index_in_specific_worker(data.worker_id)
-        if isinstance(data, ExceptionWrapper):
-            data.reraise()
-        return data
-
     def _process_data(self, data):
         self._rcvd_idx += 1
-        self._try_put_index()
         if isinstance(data, ExceptionWrapper):
             data.reraise()
         return data
