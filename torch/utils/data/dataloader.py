@@ -1141,12 +1141,6 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                     self._shutdown_workers()
                 raise StopIteration
 
-            # Now `self._rcvd_idx` is the batch index we want to fetch
-
-            # Check if the next sample has already been generated
-            if len(self._task_info[self._rcvd_idx]) == 2:
-                data = self._task_info.pop(self._rcvd_idx)[1]
-                return self._process_data(data)
 
             assert not self._shutdown and self._tasks_outstanding > 0
             idx, data = self._get_data()
@@ -1161,12 +1155,9 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                     self._try_put_index()
                     continue
 
-            if idx != self._rcvd_idx:
-                # store out-of-order samples
-                self._task_info[idx] += (data,)
-            else:
-                del self._task_info[idx]
-                return self._process_data(data)
+            # Process and return data irrespective of the order it was received in
+            del self._task_info[idx]
+            return self._process_data(data)
 
     def _try_put_index(self):
         assert self._tasks_outstanding < self._prefetch_factor * self._num_workers
