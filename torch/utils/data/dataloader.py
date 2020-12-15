@@ -1128,12 +1128,23 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             # This part needs to run in the loop because both the `self._get_data()`
             # call and `_IterableDatasetStopIteration` check below can mark
             # extra worker(s) as dead.
-            if self._rcvd_idx >= self._send_idx:
+            while self._rcvd_idx < self._send_idx:
+                info = self._task_info[self._rcvd_idx]
+                worker_id = info[0]
+                if len(info) == 2 or self._workers_status[worker_id]:  # has data or is still active
+                    break
+                del self._task_info[self._rcvd_idx]
+                self._rcvd_idx += 1
+            else:
                 # no valid `self._rcvd_idx` is found (i.e., didn't break)
                 if not self._persistent_workers:
                     self._shutdown_workers()
                 raise StopIteration
 
+            # Check if the next sample has already been generated
+            if len(self._task_info[self._rcvd_idx]) == 2:
+                data = self._task_info.pop(self._rcvd_idx)[1]
+                return self._process_data(data)
 
             assert not self._shutdown and self._tasks_outstanding > 0
             idx, data = self._get_data()
