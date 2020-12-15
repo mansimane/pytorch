@@ -1141,6 +1141,8 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                     self._shutdown_workers()
                 raise StopIteration
 
+            # Now `self._rcvd_idx` is the batch index we want to fetch
+
             # Check if the next sample has already been generated
             if len(self._task_info[self._rcvd_idx]) == 2:
                 data = self._task_info.pop(self._rcvd_idx)[1]
