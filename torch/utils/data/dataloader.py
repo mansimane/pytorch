@@ -1128,7 +1128,6 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             # This part needs to run in the loop because both the `self._get_data()`
             # call and `_IterableDatasetStopIteration` check below can mark
             # extra worker(s) as dead.
-
             # Case 1:
             #     Send order :              0 1 2 3 4
             #     Receive order:            1 3 2 0 4
