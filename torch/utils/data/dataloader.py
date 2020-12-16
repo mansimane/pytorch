@@ -1138,18 +1138,19 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             #     Receive order: 0 1 2 3 4
             #     self._rcvd_idx 0 1 2 3 4
 
-            task_ids = iter(self._task_info.keys())
             while self._rcvd_idx < self._send_idx:
-
-                task_id = task_ids.__next__()
-                # Note we can't access task info by index because we if data related to that index is already processsed,
-                # corresponding entry does not exist in task_info
-                info = self._task_info[task_id]
-                worker_id = info[0]
-                if len(info) == 2 or self._workers_status[worker_id]:  # has data or is still active
+                if len(self._task_info) > 0:
+                    task_id = self._task_info.keys()[0]
+                    # Note we can't access task info by index because we if data related to that index is already processsed,
+                    # corresponding entry does not exist in task_info
+                    info = self._task_info[task_id]
+                    worker_id = info[0]
+                    if len(info) == 2 or self._workers_status[worker_id]:  # has data or is still active
+                        break
+                    del self._task_info[task_id]
+                    self._rcvd_idx += 1
+                else:
                     break
-                del self._task_info[task_id]
-                self._rcvd_idx += 1
             else:
                 # no valid `self._rcvd_idx` is found (i.e., didn't break)
                 if not self._persistent_workers:
