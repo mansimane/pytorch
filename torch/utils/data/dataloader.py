@@ -1156,7 +1156,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                     self._shutdown_workers()
                 raise StopIteration
 
-            # Now `self._rcvd_idx` is the batch index we want to fetch
+            # Now whichever data is avaiable first, we want to fatch that.
 
             assert not self._shutdown and self._tasks_outstanding > 0
             idx, data = self._get_data()
