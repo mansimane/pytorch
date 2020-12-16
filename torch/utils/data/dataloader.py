@@ -1158,11 +1158,6 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
 
             # Now `self._rcvd_idx` is the batch index we want to fetch
 
-            # Check if the next sample has already been generated
-            if len(self._task_info[self._rcvd_idx]) == 2:
-                data = self._task_info.pop(self._rcvd_idx)[1]
-                return self._process_data(data)
-
             assert not self._shutdown and self._tasks_outstanding > 0
             idx, data = self._get_data()
             self._tasks_outstanding -= 1
