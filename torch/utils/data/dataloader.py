@@ -1140,7 +1140,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
 
             while self._rcvd_idx < self._send_idx:
                 if len(self._task_info) > 0:
-                    task_id = self._task_info.keys()[0]
+                    task_id = list(self._task_info.keys())[0]
                     # Note we can't access task info by index because we if data related to that index is already processsed,
                     # corresponding entry does not exist in task_info
                     info = self._task_info[task_id]
