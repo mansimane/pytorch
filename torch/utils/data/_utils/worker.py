@@ -12,6 +12,7 @@ from torch._six import queue
 from torch._utils import ExceptionWrapper
 from typing import Union
 from . import signal_handling, MP_STATUS_CHECK_INTERVAL, IS_WINDOWS
+import time
 
 if IS_WINDOWS:
     import ctypes
@@ -200,6 +201,10 @@ def _worker_loop(dataset_kind, dataset, index_queue, data_queue, done_event,
             else:
                 try:
                     data = fetcher.fetch(index)
+                    # Add artificial latency to a worker
+                    if worker_id == 0:
+                        time.sleep(0.5)
+
                 except Exception as e:
                     if isinstance(e, StopIteration) and dataset_kind == _DatasetKind.Iterable:
                         data = _IterableDatasetStopIteration(worker_id)
