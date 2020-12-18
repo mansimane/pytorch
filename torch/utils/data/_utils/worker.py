@@ -202,7 +202,7 @@ def _worker_loop(dataset_kind, dataset, index_queue, data_queue, done_event,
                 try:
                     data = fetcher.fetch(index)
                     # Add artificial latency to a worker
-                    if worker_id == 0:
+                    if random.randint(0, 9) < 1:
                         time.sleep(0.5)
 
                 except Exception as e:
