@@ -1198,14 +1198,14 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             worker_id = self._task_info[idx][0]
             if idx != self._rcvd_idx:
                 # store out-of-order samples
-                self._try_put_index_in_specific_worker(worker_id)
+                self._try_put_index(worker_id)
                 self._task_info[idx] += (data,)
             else:
                 del self._task_info[idx]
-                self._try_put_index_in_specific_worker(worker_id)
+                self._try_put_index(worker_id)
                 return self._process_data(data)
 
-    def _try_put_index(self, worker_queue_idx):
+    def _try_put_index(self, worker_queue_idx=None):
         assert self._tasks_outstanding < self._prefetch_factor * self._num_workers
 
         try:
