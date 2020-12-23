@@ -1205,43 +1205,27 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 self._try_put_index_in_specific_worker(worker_id)
                 return self._process_data(data)
 
-    def _try_put_index(self):
+    def _try_put_index(self, worker_queue_idx):
         assert self._tasks_outstanding < self._prefetch_factor * self._num_workers
 
         try:
             index = self._next_index()
         except StopIteration:
             return
-        for _ in range(self._num_workers):  # find the next active worker, if any
-            worker_queue_idx = next(self._worker_queue_idx_cycle)
-            if self._workers_status[worker_queue_idx]:
-                break
-        else:
-            # not found (i.e., didn't break)
-            return
+
+        if (worker_queue_idx is None) or (not self._workers_status[worker_queue_idx]):
+            for _ in range(self._num_workers):  # find the next active worker, if any
+                worker_queue_idx = next(self._worker_queue_idx_cycle)
+                if self._workers_status[worker_queue_idx]:
+                    break
+            else:
+                # not found (i.e., didn't break)
+                return
 
         self._index_queues[worker_queue_idx].put((self._send_idx, index))
         self._task_info[self._send_idx] = (worker_queue_idx,)
         self._tasks_outstanding += 1
         self._send_idx += 1
-
-    def _try_put_index_in_specific_worker(self, worker_queue_idx):
-        assert self._tasks_outstanding < self._prefetch_factor * self._num_workers
-
-        try:
-            index = self._next_index()
-        except StopIteration:
-            return
-
-        if self._workers_status[worker_queue_idx]:
-            self._index_queues[worker_queue_idx].put((self._send_idx, index))
-            self._task_info[self._send_idx] = (worker_queue_idx,)
-            self._tasks_outstanding += 1
-            self._send_idx += 1
-        # Current worker dead/exhausted, do not add anything
-        else:
-            return
-
 
     def _process_data(self, data):
         self._rcvd_idx += 1
