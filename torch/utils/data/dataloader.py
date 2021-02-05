@@ -1178,7 +1178,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
 
             # Check if the next sample has already been generated
             if len(self._task_info[self._rcvd_idx]) == 2:
-                data = self._task_info.pop(self._rcvd_idx)[1]
+                worker_id, data = self._task_info.pop(self._rcvd_idx)
                 return self._process_data(data)
 
             assert not self._shutdown and self._tasks_outstanding > 0
@@ -1191,14 +1191,18 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                         self._workers_status[data.worker_id] = False
                     else:
                         self._mark_worker_as_unavailable(data.worker_id)
+                    # Given worker is exhausted, use _try_put_index to put data by looking for other available workers
                     self._try_put_index()
                     continue
 
+            worker_id = self._task_info[idx][0]
             if idx != self._rcvd_idx:
                 # store out-of-order samples
+                self._try_put_index_in_specific_worker(worker_id)
                 self._task_info[idx] += (data,)
             else:
                 del self._task_info[idx]
+                self._try_put_index_in_specific_worker(worker_id)
                 return self._process_data(data)
 
     def _try_put_index(self):
@@ -1221,9 +1225,26 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
         self._tasks_outstanding += 1
         self._send_idx += 1
 
+    def _try_put_index_in_specific_worker(self, worker_queue_idx):
+        assert self._tasks_outstanding < self._prefetch_factor * self._num_workers
+
+        try:
+            index = self._next_index()
+        except StopIteration:
+            return
+
+        if self._workers_status[worker_queue_idx]:
+            self._index_queues[worker_queue_idx].put((self._send_idx, index))
+            self._task_info[self._send_idx] = (worker_queue_idx,)
+            self._tasks_outstanding += 1
+            self._send_idx += 1
+        # Current worker dead/exhausted, do not add anything
+        else:
+            return
+
+
     def _process_data(self, data):
         self._rcvd_idx += 1
-        self._try_put_index()
         if isinstance(data, ExceptionWrapper):
             data.reraise()
         return data
