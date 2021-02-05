@@ -1161,25 +1161,36 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             # This part needs to run in the loop because both the `self._get_data()`
             # call and `_IterableDatasetStopIteration` check below can mark
             # extra worker(s) as dead.
+            # Case 1:
+            #     Send order :              0 1 2 3 4
+            #     Receive order:            1 3 2 0 4
+            # (Before update)self._rcvd_idx 0 1 2 3 4
+
+            # Case 2:
+            #     Send order :   0 1 2 3 4
+            #     Receive order: 0 1 2 3 4
+            #     self._rcvd_idx 0 1 2 3 4
+
             while self._rcvd_idx < self._send_idx:
-                info = self._task_info[self._rcvd_idx]
-                worker_id = info[0]
-                if len(info) == 2 or self._workers_status[worker_id]:  # has data or is still active
+                if len(self._task_info) > 0:
+                    task_id = list(self._task_info.keys())[0]
+                    # Note we can't access task info by index because we if data related to that index is already processsed,
+                    # corresponding entry does not exist in task_info
+                    info = self._task_info[task_id]
+                    worker_id = info[0]
+                    if len(info) == 2 or self._workers_status[worker_id]:  # has data or is still active
+                        break
+                    del self._task_info[task_id]
+                    self._rcvd_idx += 1
+                else:
                     break
-                del self._task_info[self._rcvd_idx]
-                self._rcvd_idx += 1
             else:
                 # no valid `self._rcvd_idx` is found (i.e., didn't break)
                 if not self._persistent_workers:
                     self._shutdown_workers()
                 raise StopIteration
 
-            # Now `self._rcvd_idx` is the batch index we want to fetch
-
-            # Check if the next sample has already been generated
-            if len(self._task_info[self._rcvd_idx]) == 2:
-                data = self._task_info.pop(self._rcvd_idx)[1]
-                return self._process_data(data)
+            # Now whichever data is avaiable first, we want to fatch that.
 
             assert not self._shutdown and self._tasks_outstanding > 0
             idx, data = self._get_data()
@@ -1194,12 +1205,9 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                     self._try_put_index()
                     continue
 
-            if idx != self._rcvd_idx:
-                # store out-of-order samples
-                self._task_info[idx] += (data,)
-            else:
-                del self._task_info[idx]
-                return self._process_data(data)
+            # Process and return data irrespective of the order it was received in
+            del self._task_info[idx]
+            return self._process_data(data)
 
     def _try_put_index(self):
         assert self._tasks_outstanding < self._prefetch_factor * self._num_workers
